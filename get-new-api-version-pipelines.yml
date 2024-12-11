@@ -1,0 +1,48 @@
+variables:
+- group: swaggerhub-config
+
+trigger: none
+
+pool:
+  vmImage: ubuntu-latest
+
+steps:
+- task: PowerShell@2
+  inputs:
+    targetType: 'inline'
+    script: |
+      $url = "https://api.swaggerhub.com/apis/Vaudoise_Assurance/Demo_API"
+      
+      $apiVersions = Invoke-RestMethod -Uri $url -Headers @{Authorization = "$(ApiKey)"}
+      $numberOfVersions = $apiVersions.totalCount
+
+      $latestVersionApiUrl = "$($apiVersions.apis[$numberOfVersions-1].properties[0].url)/swagger.yaml" 
+      $latestVersionApi = "$($apiVersions.apis[$numberOfVersions-1].properties[1].value)"
+
+      echo "##vso[task.setvariable variable=latestVersionUrl]$latestVersionApiUrl";
+      echo "##vso[task.setvariable variable=latestVersion]$latestVersionApi";
+
+- checkout: self
+  persistCredentials: true
+
+- script: |
+   git config --global user.email "demo-pipeline@vaudoise.ch"
+   git config --global user.name "SwaggerHub Demo Pipeline"
+   git pull --rebase origin HEAD:develop
+
+   curl -o api-definition/openapi.yaml -s \
+     $(latestVersionUrl) \
+     -H 'accept: application/json' \
+     -H "Authorization: $(ApiKey)" \
+     -H 'Content-Type: application/json'
+  
+   export lastestVersionApi=$(latestVersion)
+   echo $lastestVersionApi > api-definition/version.txt
+
+   git add api-definition/openapi.yaml
+   git add api-definition/version.txt
+   git commit -m "Updated Api Definition [skip ci]"
+   git push origin HEAD:develop
+   
+  displayName: Update OpenApi definition
+  workingDirectory: $(System.DefaultWorkingDirectory)

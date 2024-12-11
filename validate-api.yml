@@ -1,0 +1,126 @@
+variables:
+- group: swaggerhub-config
+
+trigger:
+  branches:
+    include:
+    - main
+    
+pool:
+  vmImage: ubuntu-latest
+
+stages:
+- stage: ValidateAPI
+  displayName: 'Validate API'
+
+  jobs:
+  - job: ValidateAPI
+
+    steps:
+    - checkout: self
+      persistCredentials: true
+      clean: true      
+    - task: DotNetCoreCLI@2
+      displayName: Install Swashbuckle Tool
+      inputs:
+        command: custom
+        custom: tool
+        arguments: install --global Swashbuckle.AspNetCore.Cli --version 7.1.0
+
+    - task: Npm@1
+      displayName: Install OpenApi Diff
+      inputs:
+        command: custom
+        customCommand: install openapi-diff --save-dev -g
+
+    - task: DotNetCoreCLI@2
+      displayName: Build Project
+      inputs:
+        command: build
+        projects: '**/*.csproj'
+
+    - task: PowerShell@2
+      displayName: Build Swagger File
+      inputs:
+        targetType: 'inline'
+        script: |
+          swagger tofile --output swagger.json $(System.DefaultWorkingDirectory)/src/bin/Debug/net8.0/IO.Swagger.dll 1.0.0
+
+    - script: |
+        
+        apiVersion=$(<$(System.DefaultWorkingDirectory)/api-definition/version.txt)
+        url="https://api.swaggerhub.com/apis/Vaudoise_Assurance/Demo_API/$apiVersion/swagger.json?resolved=true&flatten=false"
+          
+        curl -o openapi-spec.json -s \
+            $url \
+            -H 'accept: application/json' \
+            -H "Authorization: $(ApiKey)" \
+            -H 'Content-Type: application/json'
+        
+        openapispec=$(<openapi-spec.json)
+            
+      displayName: Get Latest API Definition
+    
+    - task: PowerShell@2
+      displayName: Compare APIs
+      continueOnError: false
+      inputs:
+        targetType: 'inline'
+        script: |
+          
+          $compareResultFilePath = "$(System.DefaultWorkingDirectory)/api-definition/compare-result.json"
+          
+          openapi-diff openapi-spec.json swagger.json > $compareResultFilePath
+        
+          $compareResult = Get-Content -Path $compareResultFilePath
+          
+          git config --global user.email "demo-pipeline@company.ch"
+          git config --global user.name "SwaggerHub Demo Pipeline"
+          git pull --rebase origin HEAD:develop
+
+          git add $compareResultFilePath
+          git commit -m "Updated compare-result file [skip ci]"
+          git push origin HEAD:develop
+          
+          if ($compareResult -eq "No changes found between the two specifications")
+          {
+            Write-Host "No differences in APIs"
+          } 
+          else
+          {
+
+            Write-Error "APIs are not the same! Check compare-result.json for more details"
+            throw 
+          }
+
+- stage: MarkAsPublish
+  displayName: 'PublishAPI'
+  dependsOn: ValidateAPI
+  jobs:
+  - job: MarkApiPublished
+
+    steps:
+    
+    - script: |
+        
+        apiVersion=$(<$(System.DefaultWorkingDirectory)/api-definition/version.txt)
+        url="https://api.swaggerhub.com/apis/Vaudoise_Assurance/Demo_API/$apiVersion/settings/lifecycle"
+
+        response=$(curl -s -X 'PUT' \
+          $url \
+          -H 'accept: application/json' \
+          -H "Authorization: $(ApiKey)" \
+          -H 'Content-Type: application/json' \
+          -d '{
+            "published": true
+          }')
+
+        if [ "$response" == "" ]
+        then
+          echo "API Published"
+        else
+          echo $response
+          exit 1
+        fi
+
+      displayName: Mark API as Published

@@ -1,0 +1,154 @@
+openapi: 3.0.0
+info:
+  description: |
+    This is a sample store server.  You can find
+    out more about Swagger at
+    [http://swagger.io](http://swagger.io) or on
+    [irc.freenode.net, #swagger](http://swagger.io/irc/).
+  version: "1.0.0"
+  title: Store Demo API
+  termsOfService: 'http://swagger.io/terms/'
+  contact:
+    email: apiteam@swagger.io
+  license:
+    name: Apache 2.0
+    url: 'http://www.apache.org/licenses/LICENSE-2.0.html'
+servers:
+  # Added by API Auto Mocking Plugin
+  - description: SwaggerHub API Auto Mocking
+    url: https://virtserver.swaggerhub.com/your_company_domain/Demo_API/1.0.0
+  - url: 'https://petstore.swagger.io/v2'
+tags:
+  - name: store
+    description: Access to Petstore orders
+paths:
+  /store/inventory:
+    get:
+      tags:
+        - store
+      summary: Returns pet inventories by status
+      description: Returns a map of status codes to quantities
+      operationId: getInventory
+      responses:
+        '200':
+          description: successful operation
+          content:
+            application/json:
+              schema:
+                type: object
+                additionalProperties:
+                  type: integer
+                  format: int32
+      security:
+        - api_key: []
+  /store/order:
+    post:
+      tags:
+        - store
+      summary: Place an order for a pet
+      operationId: placeOrder
+      responses:
+        '200':
+          description: successful operation
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Order'
+        '400':
+          description: Invalid Order
+      requestBody:
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/Order'
+        description: order placed for purchasing the pet
+        required: true
+  '/store/order/{orderId}':
+    get:
+      tags:
+        - store
+      summary: Find purchase order by ID
+      description: >-
+        For valid response try integer IDs with value >= 1 and <= 10.\ \ Other
+        values will generated exceptions
+      operationId: getOrderById
+      parameters:
+        - name: orderId
+          in: path
+          description: ID of pet that needs to be fetched
+          required: true
+          schema:
+            type: integer
+            format: int64
+            minimum: 1
+            maximum: 10
+      responses:
+        '200':
+          description: successful operation
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Order'
+        '400':
+          description: Invalid ID supplied
+        '404':
+          description: Order not found
+    delete:
+      tags:
+        - store
+      summary: Delete purchase order by ID
+      description: >-
+        For valid response try integer IDs with positive integer value.\ \
+        Negative or non-integer values will generate API errors
+      operationId: deleteOrder
+      parameters:
+        - name: orderId
+          in: path
+          description: ID of the order that needs to be deleted
+          required: true
+          schema:
+            type: integer
+            format: int64
+            minimum: 1
+      responses:
+        '200': 
+          $ref: 'https://api.swaggerhub.com/domains/your_company_domain/Demo_Domain/1.0.0#/components/responses/GeneralSuccess'
+        '400':
+          description: Invalid ID supplied
+        '404':
+          description: Order not found
+externalDocs:
+  description: Find out more about Swagger
+  url: 'http://swagger.io'
+components:
+  schemas:
+    Order:
+      type: object
+      properties:
+        id:
+          type: integer
+          format: int64
+        petId:
+          type: integer
+          format: int64
+        quantity:
+          type: integer
+          format: int32
+        shipDate:
+          type: string
+          format: date-time
+        status:
+          type: integer
+          description: Order Status
+          enum:
+            - 0
+            - 1
+            - 2
+        complete:
+          type: boolean
+          default: false
+  securitySchemes:
+    api_key:
+      type: apiKey
+      name: api_key
+      in: header
