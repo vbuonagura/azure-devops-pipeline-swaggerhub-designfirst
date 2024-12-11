@@ -11,7 +11,7 @@ steps:
   inputs:
     targetType: 'inline'
     script: |
-      $url = "https://api.swaggerhub.com/apis/Vaudoise_Assurance/Demo_API"
+      $url = "https://api.swaggerhub.com/apis/{your_swagger_domain}/Demo_API"
       
       $apiVersions = Invoke-RestMethod -Uri $url -Headers @{Authorization = "$(ApiKey)"}
       $numberOfVersions = $apiVersions.totalCount

@@ -49,7 +49,7 @@ stages:
     - script: |
         
         apiVersion=$(<$(System.DefaultWorkingDirectory)/api-definition/version.txt)
-        url="https://api.swaggerhub.com/apis/Vaudoise_Assurance/Demo_API/$apiVersion/swagger.json?resolved=true&flatten=false"
+        url="https://api.swaggerhub.com/apis/{your_swagger_domain}/Demo_API/$apiVersion/swagger.json?resolved=true&flatten=false"
           
         curl -o openapi-spec.json -s \
             $url \
@@ -104,7 +104,7 @@ stages:
     - script: |
         
         apiVersion=$(<$(System.DefaultWorkingDirectory)/api-definition/version.txt)
-        url="https://api.swaggerhub.com/apis/Vaudoise_Assurance/Demo_API/$apiVersion/settings/lifecycle"
+        url="https://api.swaggerhub.com/apis/{your_swagger_domain}/Demo_API/$apiVersion/settings/lifecycle"
 
         response=$(curl -s -X 'PUT' \
           $url \
